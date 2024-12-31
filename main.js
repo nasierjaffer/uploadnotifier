@@ -2,17 +2,16 @@ import fetch from 'node-fetch';
 
 export default async ({ req, res, log, error, env }) => {
     try {
-        // Extracting bucketId and projectId from environment variables
+        // Extract environment variables
         const bucketId = env.bucketid;
-        const projectId = env.projectid;
 
-        // Ensure the function is triggered only for the correct bucket
+        // Check if the triggered bucket ID matches
         if (req.body.$bucketId !== bucketId) {
             log(`Ignored event for bucket ID: ${req.body.$bucketId}`);
-            return res.status(200).send('Event ignored.');
+            return res.json({ message: 'Event ignored.' }); // Appwrite uses res.json() for responses
         }
 
-        // Extracting relevant details from req.body
+        // Extract file details from the request body
         const fileDetails = {
             Type: req.body.mimeType,
             Size: req.body.size,
@@ -32,14 +31,12 @@ export default async ({ req, res, log, error, env }) => {
             body: JSON.stringify(fileDetails),
         });
 
-        // Log the API response
-        const result = await response.text(); // Adjust if API returns JSON
-        log(`API Response: ${result}`);
+        const result = await response.text(); // Assuming the API returns text
 
-        // Return success response
-        return res.status(200).send('Post request sent successfully.');
+        log(`API Response: ${result}`);
+        return res.json({ message: 'Post request sent successfully.', apiResponse: result });
     } catch (err) {
         log(`Error occurred: ${err.message}`);
-        return res.status(500).send('An error occurred while handling the event.');
+        return res.json({ error: 'An error occurred while handling the event.', details: err.message });
     }
 };
