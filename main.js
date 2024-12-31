@@ -2,15 +2,24 @@ import fetch from 'node-fetch';
 
 export default async ({ req, res, log, error, env }) => {
     try {
-        // Access environment variables safely
+        log('Function execution started.');
+
+        // Log the incoming request body for debugging
+        log(`Request body: ${JSON.stringify(req.body)}`);
+
+        // Access environment variables safely and log them
         const bucketId = env.bucketid;
         const projectId = env.projectid;
 
+        log(`Environment Variables: bucketid=${bucketId}, projectid=${projectId}`);
+
         if (!bucketId || !projectId) {
+            log('Environment variables are missing.');
             throw new Error("Environment variables 'bucketid' or 'projectid' are not set.");
         }
 
-        // Check if the triggered bucket ID matches
+        // Check if the triggered bucket ID matches and log the bucket ID
+        log(`Triggered bucket ID: ${req.body.$bucketId}`);
         if (req.body.$bucketId !== bucketId) {
             log(`Ignored event for bucket ID: ${req.body.$bucketId}`);
             return res.json({ message: 'Event ignored.' });
@@ -23,13 +32,14 @@ export default async ({ req, res, log, error, env }) => {
             Created: req.body.$createdAt,
         };
 
-        log(`File details: ${JSON.stringify(fileDetails)}`);
+        log(`File details extracted: ${JSON.stringify(fileDetails)}`);
 
-        // External API URL
+        // Log the external API URL
         const url = 'http://160.119.102.51:5000/';
-        const headers = { 'Content-Type': 'application/json' };
+        log(`Sending POST request to URL: ${url}`);
 
         // Send POST request with file details
+        const headers = { 'Content-Type': 'application/json' };
         const response = await fetch(url, {
             method: 'POST',
             headers: headers,
@@ -37,11 +47,15 @@ export default async ({ req, res, log, error, env }) => {
         });
 
         const result = await response.text(); // Assuming the API returns text
-
         log(`API Response: ${result}`);
+
+        // Return success response
+        log('Function execution completed successfully.');
         return res.json({ message: 'Post request sent successfully.', apiResponse: result });
     } catch (err) {
+        // Log detailed error information
         log(`Error occurred: ${err.message}`);
+        log(`Stack trace: ${err.stack}`);
         return res.json({ error: 'An error occurred while handling the event.', details: err.message });
     }
 };
