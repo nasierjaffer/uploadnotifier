@@ -2,13 +2,18 @@ import fetch from 'node-fetch';
 
 export default async ({ req, res, log, error, env }) => {
     try {
-        // Extract environment variables
+        // Access environment variables safely
         const bucketId = env.bucketid;
+        const projectId = env.projectid;
+
+        if (!bucketId || !projectId) {
+            throw new Error("Environment variables 'bucketid' or 'projectid' are not set.");
+        }
 
         // Check if the triggered bucket ID matches
         if (req.body.$bucketId !== bucketId) {
             log(`Ignored event for bucket ID: ${req.body.$bucketId}`);
-            return res.json({ message: 'Event ignored.' }); // Appwrite uses res.json() for responses
+            return res.json({ message: 'Event ignored.' });
         }
 
         // Extract file details from the request body
