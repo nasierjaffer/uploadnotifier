@@ -21,7 +21,11 @@ export default async ({ req, res, log, error, env }) => {
             throw new Error("Required environment variables are missing: 'projectid', 'bucketid', or 'APPWRITE_API_KEY'.");
         }
 
-        client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+        // Configure Appwrite client
+        client
+            .setEndpoint(endpoint) // Set the endpoint
+            .setProject(projectId) // Set the project ID
+            .addHeader('X-Appwrite-API-Key', apiKey); // Add API key for authentication
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
