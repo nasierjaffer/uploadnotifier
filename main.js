@@ -34,13 +34,40 @@ export default async ({ req, res, log, error, env }) => {
 
         log(`File details extracted: ${JSON.stringify(fileDetails)}`);
 
-        // Send POST request to external API
+        // Prepare the file retrieval
+        const fileId = req.body.$id;
+        log(`Retrieving file with ID: ${fileId}`);
+        const fileUrl = `https://appwrite.io/v1/storage/buckets/${bucketId}/files/${fileId}/download`;
+
+        const fileResponse = await fetch(fileUrl, {
+            method: 'GET',
+            headers: {
+                'X-Appwrite-Project': projectId,
+                'X-Appwrite-Key': process.env.APPWRITE_API_KEY, // Ensure API key is set
+            },
+        });
+
+        if (!fileResponse.ok) {
+            throw new Error(`Failed to retrieve file: ${fileResponse.statusText}`);
+        }
+
+        const fileBuffer = await fileResponse.buffer();
+        log(`File retrieved successfully.`);
+
+        // Send POST request to external API with file and metadata
         const url = 'http://160.119.102.51:5000/';
         log(`Sending POST request to URL: ${url}`);
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(fileDetails),
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+            body: (() => {
+                const formData = new FormData();
+                formData.append('file', fileBuffer, req.body.name);
+                formData.append('details', JSON.stringify(fileDetails));
+                return formData;
+            })(),
         });
 
         const result = await response.text();
