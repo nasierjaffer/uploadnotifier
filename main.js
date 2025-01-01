@@ -1,81 +1,73 @@
-import fetch from 'node-fetch';
+import { Client, Storage } from "appwrite";
+import FormData from "form-data";
+import fetch from "node-fetch";
 
 export default async ({ req, res, log, error, env }) => {
     try {
-        log('Function execution started.');
+        log("Function execution started.");
 
-        // Log all available environment variables
-        log(`Environment variables: ${JSON.stringify(env)}`);
+        // Initialize Appwrite client
+        const client = new Client();
+        const storage = new Storage(client);
 
-        // Access environment variables
-        const bucketId = process.env.bucketid; // Check case sensitivity
+        const endpoint = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
         const projectId = process.env.projectid;
+        const apiKey = process.env.APPWRITE_API_KEY;
+        const bucketId = process.env.bucketid;
 
-        log(`Resolved Environment Variables: bucketid=${bucketId}, projectid=${projectId}`);
+        log(`Environment Variables: endpoint=${endpoint}, projectId=${projectId}, bucketId=${bucketId}, apiKey=${apiKey ? 'present' : 'missing'}`);
 
-        if (!bucketId || !projectId) {
-            log('Environment variables are missing.');
-            throw new Error("Environment variables 'bucketid' or 'projectid' are not set.");
+        if (!projectId || !bucketId || !apiKey) {
+            throw new Error("Required environment variables are missing: 'projectid', 'bucketid', or 'APPWRITE_API_KEY'.");
         }
 
-        // Check if the triggered bucket ID matches
-        log(`Triggered bucket ID: ${req.body.bucketId}`);
+        client.setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
+
+        // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
             log(`Ignored event for bucket ID: ${req.body.bucketId}`);
-            return res.json({ message: 'Event ignored.' });
+            return res.json({ message: "Event ignored." });
         }
 
-        // Extract file details
-        const fileDetails = {
-            Type: req.body.mimeType,
-            Size: req.body.sizeOriginal,
-            Created: req.body.$createdAt,
-        };
-
-        log(`File details extracted: ${JSON.stringify(fileDetails)}`);
-
-        // Prepare the file retrieval
         const fileId = req.body.$id;
         log(`Retrieving file with ID: ${fileId}`);
-        const fileUrl = `https://appwrite.io/v1/storage/buckets/${bucketId}/files/${fileId}/download`;
 
-        const fileResponse = await fetch(fileUrl, {
-            method: 'GET',
-            headers: {
-                'X-Appwrite-Project': projectId,
-                'X-Appwrite-Key': process.env.APPWRITE_API_KEY, // Ensure API key is set
-            },
-        });
+        // Use Appwrite SDK to get the file download URL
+        const fileUrl = storage.getFileDownload(bucketId, fileId);
+        log(`Retrieved file URL: ${fileUrl}`);
 
+        // Download the file
+        const fileResponse = await fetch(fileUrl);
         if (!fileResponse.ok) {
-            throw new Error(`Failed to retrieve file: ${fileResponse.statusText}`);
+            throw new Error(`Failed to download file: ${fileResponse.statusText}`);
         }
 
         const fileBuffer = await fileResponse.buffer();
-        log(`File retrieved successfully.`);
+        log(`File retrieved successfully. File size: ${fileBuffer.length} bytes.`);
 
-        // Send POST request to external API with file and metadata
-        const url = 'http://160.119.102.51:5000/';
-        log(`Sending POST request to URL: ${url}`);
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-            body: (() => {
-                const formData = new FormData();
-                formData.append('file', fileBuffer, req.body.name);
-                formData.append('details', JSON.stringify(fileDetails));
-                return formData;
-            })(),
+        // Send the file and metadata to the external API
+        const externalApiUrl = "http://160.119.102.51:5000/";
+        log(`Sending POST request to URL: ${externalApiUrl}`);
+        const formData = new FormData();
+        formData.append("file", fileBuffer, req.body.name);
+        formData.append("details", JSON.stringify({
+            Type: req.body.mimeType,
+            Size: req.body.sizeOriginal,
+            Created: req.body.$createdAt,
+        }));
+
+        const externalResponse = await fetch(externalApiUrl, {
+            method: "POST",
+            body: formData,
         });
 
-        const result = await response.text();
-        log(`API Response: ${result}`);
-        return res.json({ message: 'Post request sent successfully.', apiResponse: result });
+        const result = await externalResponse.text();
+        log(`External API Response: ${result}`);
+
+        return res.json({ message: "Post request sent successfully.", apiResponse: result });
     } catch (err) {
         log(`Error occurred: ${err.message}`);
         log(`Stack trace: ${err.stack}`);
-        return res.json({ error: 'An error occurred while handling the event.', details: err.message });
+        return res.json({ error: "An error occurred while handling the event.", details: err.message });
     }
 };
