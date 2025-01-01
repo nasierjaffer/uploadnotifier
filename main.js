@@ -10,22 +10,18 @@ export default async ({ req, res, log, error, env }) => {
         const client = new Client();
         const storage = new Storage(client);
 
-        const endpoint = process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
-        const projectId = process.env.projectid;
-        const apiKey = process.env.APPWRITE_API_KEY;
-        const bucketId = process.env.bucketid;
+        const endpoint = env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+        const projectId = env.projectid;
+        const apiKey = env.APPWRITE_API_KEY;
+        const bucketId = env.bucketid;
 
-        log(`Environment Variables: endpoint=${endpoint}, projectId=${projectId}, bucketId=${bucketId}, apiKey=${apiKey ? 'present' : 'missing'}`);
+        log(`Environment Variables: endpoint=${endpoint}, projectId=${projectId}, bucketId=${bucketId}, apiKey=${apiKey ? "present" : "missing"}`);
 
         if (!projectId || !bucketId || !apiKey) {
             throw new Error("Required environment variables are missing: 'projectid', 'bucketid', or 'APPWRITE_API_KEY'.");
         }
 
-        // Configure Appwrite client
-        client
-            .setEndpoint(endpoint) // Set the endpoint
-            .setProject(projectId) // Set the project ID
-            .setKey(apiKey); // Add API key for server-side authentication
+        client.setEndpoint(endpoint).setProject(projectId).addHeader("X-Appwrite-Key", apiKey);
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
@@ -36,17 +32,14 @@ export default async ({ req, res, log, error, env }) => {
         const fileId = req.body.$id;
         log(`Retrieving file with ID: ${fileId}`);
 
-        // Use Appwrite SDK to get the file download URL
-        const fileUrl = storage.getFileDownload(bucketId, fileId);
-        log(`Retrieved file URL: ${fileUrl}`);
-
         // Download the file
-        const fileResponse = await fetch(fileUrl);
-        if (!fileResponse.ok) {
-            throw new Error(`Failed to download file: ${fileResponse.statusText}`);
+        const fileStream = await storage.getFileDownload(bucketId, fileId);
+        const chunks = [];
+        for await (const chunk of fileStream) {
+            chunks.push(chunk);
         }
+        const fileBuffer = Buffer.concat(chunks);
 
-        const fileBuffer = await fileResponse.buffer();
         log(`File retrieved successfully. File size: ${fileBuffer.length} bytes.`);
 
         // Send the file and metadata to the external API
