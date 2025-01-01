@@ -6,22 +6,32 @@ export default async ({ req, res, log, error, env }) => {
     try {
         log("Function execution started.");
 
+        // Retrieve environment variables
+        const endpoint = env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+        const projectId = env.projectid || null;
+        const apiKey = env.APPWRITE_API_KEY || null;
+        const bucketId = env.bucketid || null;
+
+        if (!endpoint || !projectId || !apiKey || !bucketId) {
+            throw new Error(
+                `Missing required environment variables: 
+                endpoint=${endpoint || "undefined"}, 
+                projectid=${projectId || "undefined"}, 
+                bucketid=${bucketId || "undefined"}, 
+                apiKey=${apiKey ? "present" : "missing"}`
+            );
+        }
+
+        log(`Environment Variables: endpoint=${endpoint}, projectId=${projectId}, bucketId=${bucketId}, apiKey=${apiKey ? "present" : "missing"}`);
+
         // Initialize Appwrite client
         const client = new Client();
         const storage = new Storage(client);
 
-        const endpoint = env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
-        const projectId = env.projectid;
-        const apiKey = env.APPWRITE_API_KEY;
-        const bucketId = env.bucketid;
-
-        log(`Environment Variables: endpoint=${endpoint}, projectId=${projectId}, bucketId=${bucketId}, apiKey=${apiKey ? "present" : "missing"}`);
-
-        if (!projectId || !bucketId || !apiKey) {
-            throw new Error("Required environment variables are missing: 'projectid', 'bucketid', or 'APPWRITE_API_KEY'.");
-        }
-
-        client.setEndpoint(endpoint).setProject(projectId).addHeader("X-Appwrite-Key", apiKey);
+        client
+            .setEndpoint(endpoint)
+            .setProject(projectId)
+            .setKey(apiKey);
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
@@ -32,19 +42,29 @@ export default async ({ req, res, log, error, env }) => {
         const fileId = req.body.$id;
         log(`Retrieving file with ID: ${fileId}`);
 
-        // Download the file
-        const fileStream = await storage.getFileDownload(bucketId, fileId);
-        const chunks = [];
-        for await (const chunk of fileStream) {
-            chunks.push(chunk);
-        }
-        const fileBuffer = Buffer.concat(chunks);
+        // Use Appwrite SDK to get the file download URL
+        const fileUrl = storage.getFileDownload(bucketId, fileId);
+        log(`Retrieved file URL: ${fileUrl}`);
 
+        // Download the file
+        const fileResponse = await fetch(fileUrl, {
+            headers: {
+                "X-Appwrite-Project": projectId,
+                "X-Appwrite-Key": apiKey,
+            },
+        });
+
+        if (!fileResponse.ok) {
+            throw new Error(`Failed to download file: ${fileResponse.statusText}`);
+        }
+
+        const fileBuffer = await fileResponse.buffer();
         log(`File retrieved successfully. File size: ${fileBuffer.length} bytes.`);
 
         // Send the file and metadata to the external API
         const externalApiUrl = "http://160.119.102.51:5000/";
         log(`Sending POST request to URL: ${externalApiUrl}`);
+
         const formData = new FormData();
         formData.append("file", fileBuffer, req.body.name);
         formData.append("details", JSON.stringify({
