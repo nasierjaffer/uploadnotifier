@@ -7,7 +7,7 @@ export default async ({ req, res, log, error, env }) => {
         log("Function execution started.");
 
         // Retrieve environment variables
-        const endpoint = env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+        const endpoint = "https://cloud.appwrite.io/v1";
         const projectId = env.projectid || null;
         const apiKey = env.APPWRITE_API_KEY || null;
         const bucketId = env.bucketid || null;
