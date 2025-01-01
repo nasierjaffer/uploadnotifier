@@ -8,8 +8,8 @@ export default async ({ req, res, log, error, env }) => {
         log(`Environment variables: ${JSON.stringify(env)}`);
 
         // Access environment variables
-        const bucketId = env.bucketid; // Check case sensitivity
-        const projectId = env.projectid;
+        const bucketId = process.env.bucketid; // Check case sensitivity
+        const projectId = process.env.projectid;
 
         log(`Resolved Environment Variables: bucketid=${bucketId}, projectid=${projectId}`);
 
