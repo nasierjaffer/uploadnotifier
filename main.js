@@ -25,7 +25,7 @@ export default async ({ req, res, log, error, env }) => {
         client
             .setEndpoint(endpoint) // Set the endpoint
             .setProject(projectId) // Set the project ID
-            .addHeader('X-Appwrite-API-Key', apiKey); // Add API key for authentication
+            .setKey(apiKey); // Add API key for server-side authentication
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
