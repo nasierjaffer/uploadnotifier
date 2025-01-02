@@ -7,7 +7,7 @@ export default async ({ req, res, log, error, env }) => {
         log("Function execution started.");
 
         // Retrieve environment variables
-        const endpoint = "https://cloud.appwrite.io/v1";
+        const endpoint = process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
         const projectId = process.env.projectid || null;
         const apiKey = process.env.APPWRITE_API_KEY || null;
         const bucketId = process.env.bucketid || null;
@@ -31,7 +31,7 @@ export default async ({ req, res, log, error, env }) => {
         client
             .setEndpoint(endpoint)
             .setProject(projectId)
-            .setKey(apiKey);
+            .addHeader("X-Appwrite-Key", apiKey);
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
