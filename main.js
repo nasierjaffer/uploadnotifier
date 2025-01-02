@@ -8,9 +8,9 @@ export default async ({ req, res, log, error, env }) => {
 
         // Retrieve environment variables
         const endpoint = "https://cloud.appwrite.io/v1";
-        const projectId = env.projectid || null;
-        const apiKey = env.APPWRITE_API_KEY || null;
-        const bucketId = env.bucketid || null;
+        const projectId = process.env.projectid || null;
+        const apiKey = process.env.APPWRITE_API_KEY || null;
+        const bucketId = process.env.bucketid || null;
 
         if (!endpoint || !projectId || !apiKey || !bucketId) {
             throw new Error(
