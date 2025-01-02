@@ -7,10 +7,10 @@ export default async ({ req, res, log, error, env }) => {
         log("Function execution started.");
 
         // Retrieve environment variables
-        const endpoint = process.env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
-        const projectId = process.env.projectid || null;
-        const apiKey = process.env.APPWRITE_API_KEY || null;
-        const bucketId = process.env.bucketid || null;
+        const endpoint = env.APPWRITE_ENDPOINT || "https://cloud.appwrite.io/v1";
+        const projectId = env.projectid || null;
+        const apiKey = env.APPWRITE_API_KEY || null;
+        const bucketId = env.bucketid || null;
 
         if (!endpoint || !projectId || !apiKey || !bucketId) {
             throw new Error(
@@ -28,10 +28,7 @@ export default async ({ req, res, log, error, env }) => {
         const client = new Client();
         const storage = new Storage(client);
 
-        client
-            .setEndpoint(endpoint)
-            .setProject(projectId)
-            .addHeader("X-Appwrite-Key", apiKey);
+        client.setEndpoint(endpoint).setProject(projectId);
 
         // Check triggered bucket ID
         if (req.body.bucketId !== bucketId) {
@@ -42,11 +39,11 @@ export default async ({ req, res, log, error, env }) => {
         const fileId = req.body.$id;
         log(`Retrieving file with ID: ${fileId}`);
 
-        // Use Appwrite SDK to get the file download URL
-        const fileUrl = storage.getFileDownload(bucketId, fileId);
-        log(`Retrieved file URL: ${fileUrl}`);
+        // Construct the file download URL
+        const fileUrl = `${endpoint}/storage/buckets/${bucketId}/files/${fileId}/download`;
+        log(`File download URL: ${fileUrl}`);
 
-        // Download the file
+        // Download the file using fetch and include authentication headers
         const fileResponse = await fetch(fileUrl, {
             headers: {
                 "X-Appwrite-Project": projectId,
